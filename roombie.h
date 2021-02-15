@@ -1,12 +1,13 @@
-#ifndef roombie_h
-#define roombie_h
+#ifndef roombieeb5736d7-8f28-46d7-9e72-fa178b3641f8_h
+#define roombieeb5736d7-8f28-46d7-9e72-fa178b3641f8_h
 
 #include "Arduino.h"
+#include <ArduinoJson.h>
 #include <SoftwareSerial.h>
 
 /// Read timeout in milliseconds.
 /// If we have to wait more than this to read a char when we are expecting one, then something is wrong.
-#define ROOMBA_READ_TIMEOUT 500
+#define ROOMBA_READ_TIMEOUT 5000
 
 #define INVALIDRESULT -9999
 
@@ -41,8 +42,7 @@ struct SensorData {
 	unsigned short cliffFrontLeftSignal;	// 29
 	unsigned short cliffFrontRightSignal;	// 30
 	unsigned short cliffRightSignal;	// 31
-	bool isInternalCharger;				// 34
-	bool isHomeBase;					// 34
+  unsigned short chargingSource; // 34
 	unsigned short oiMode;			// 35
 	unsigned short songNumber;		// 36
 	unsigned short songPlaying;		// 37
@@ -79,6 +79,7 @@ class Roombie
 	public:
 		Roombie(int rxPin, int txPin, int baudPin);
 		void init();
+		void wakeup();
 		void startOI128();
 		void stopOI173();
 		void powerDown133();
@@ -91,10 +92,13 @@ class Roombie
 		void doSpotClean();
 		void doDock();
 		void doCommand(char* cmd);
-		
+    void drive(short velocity, short radius);
+    void turnCW(short velocity);
+    void turnCCW(short velocity);
+    
 		bool readSensor(uint8_t packetId, uint8_t pktLen, uint8_t* buf);
-		bool readAllSensors(struct SensorData *pSensorData, uint8_t* buf);
-				
+		bool readAllSensors(struct SensorData *pSensorData, DynamicJsonDocument& outgoingDoc, uint8_t* buf);
+        
 	private:
 		SoftwareSerial *pSerial;
 		int _baudPin;

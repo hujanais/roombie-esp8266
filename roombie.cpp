@@ -8,17 +8,17 @@
 
 Roombie::Roombie(int rxPin, int txPin, int baudPin)
 {
-  pSerial = new SoftwareSerial(rxPin, txPin, baudPin);
+  pSerial = new SoftwareSerial(rxPin, txPin);
   _baudPin = baudPin;
 }
 
 // change baudrate to 19200.
 void Roombie::init()
 {
-  pinMode(_baudPin, OUTPUT);
   pSerial->begin(19200);
   pSerial->listen();
 
+  delay(2000);  // wait 2 seconds before pulsing the baud pins
   _setBaudRate();
 }
 
@@ -27,6 +27,7 @@ void Roombie::init()
 */
 void Roombie::_setBaudRate()
 {
+  Serial.println("SetBaudRate to 19200");
   digitalWrite(D3, HIGH);  // set D3 to 5V
   delay(2000);
   for (int i = 0; i < 3; i++) {
@@ -55,9 +56,18 @@ void Roombie::doCommand(char* cmd)
 
   /* walk through other tokens */
   while ( token != NULL ) {
-    pSerial->write(token);
+    pSerial->write(atoi(token));
     token = strtok(NULL, s);
   }
+}
+
+void Roombie::wakeup() {
+  digitalWrite(D3, HIGH);
+  delay(100);
+  digitalWrite(D3, LOW);
+  delay(500);
+  digitalWrite(D3, HIGH);
+  delay(2000);
 }
 
 void Roombie::startOI128()
@@ -116,18 +126,57 @@ void Roombie::doDock()
   pSerial->write(143);
 }
 
+/**
+ * Special case to turn clock-wise on the spot.
+ */
+void Roombie::turnCW(short velocity){
+  // Turn in place clockwise = -1 = 0xFFFF
+  drive(velocity, 0xFF);
+}
+
+/**
+ * Special case to turn counter-clockwise on the spot.
+ */
+void Roombie::turnCCW(short velocity) {
+  // Turn in place counter-clockwise = 1= 0x0001
+  drive(velocity, 0x01);
+}
+
+
+/**
+ * Serial sequence: [137] [Velocity high byte] [Velocity low byte] [Radius high byte] [Radius low byte]
+ * Velocity (-500 to 500 mm/s).  speed can only be in steps of 28.5 mm/s.
+ * Radius (-2000 to 2000 mm)
+ * Available in modes: Safe or Full
+ */
+void Roombie::drive(short velocity, short radius) {
+  // clamp the velocity and radius
+  if (velocity < -500) velocity = -500;
+  if (velocity > 500) velocity = 500; 
+  if (radius < -2000) radius = -2000;
+  if (radius > 2000) radius = 2000; 
+  
+  pSerial->write(137);
+  pSerial->write(velocity >> 8);  // MSB
+  pSerial->write(velocity);       // LSB
+  pSerial->write(radius >> 8);    // MSB
+  pSerial->write(radius);         // LSB
+}
+
+
 /*
  	Read all roomba sensor data.  Becareful that this is a slow process
  	that can take 100s of ms.
-  example: 
+  example:
   SensorData sensorData;
   uint8_t buf[128];
+  DynamicJsonDocument outgoingDoc[1024]; // just make sure the size if big enough for your payload
   roombie.readAllSensors(&pSensorData, buf);
   buf is just the byte-raw data for debugging.
 */
-bool Roombie::readAllSensors(struct SensorData *pSensorData, uint8_t* buffer) {
+bool Roombie::readAllSensors(struct SensorData *pSensorData, DynamicJsonDocument& outgoingDoc, uint8_t* buffer) {
   bool isSuccess = false;
-  
+
   // reads all sensors and returns 80 packets
   pSerial->write(142);
   pSerial->write(100);
@@ -170,7 +219,7 @@ bool Roombie::readAllSensors(struct SensorData *pSensorData, uint8_t* buffer) {
     subBuffer[0] = buffer[7];	// 14
     val = _convertBytesToUInt(subBuffer, 1);
     pSensorData->isSideBrushOverCurrent = ((val & 0x1) != 0);
-    pSensorData->isMainBrushOverCurrent = ((val & 0x2)!= 0);
+    pSensorData->isMainBrushOverCurrent = ((val & 0x2) != 0);
     pSensorData->isRightWheelOverCurrent = (val & 0x4 != 0);
     pSensorData->isLeftWheelOverCurrent = ((val & 0x8) != 0);
 
@@ -237,9 +286,7 @@ bool Roombie::readAllSensors(struct SensorData *pSensorData, uint8_t* buffer) {
     pSensorData->cliffRightSignal = _convertBytesToUInt(subBuffer, 2);
 
     subBuffer[0] = buffer[39];	// 34
-    val = _convertBytesToUInt(subBuffer, 1);
-    pSensorData->isInternalCharger = ((val & 0x1) != 0);
-    pSensorData->isHomeBase = ((val & 0x2)!= 0);
+    pSensorData->chargingSource = _convertBytesToUInt(subBuffer, 1);
 
     subBuffer[0] = buffer[40];	// 35
     pSensorData->oiMode = _convertBytesToUInt(subBuffer, 1);
@@ -280,7 +327,7 @@ bool Roombie::readAllSensors(struct SensorData *pSensorData, uint8_t* buffer) {
     subBuffer[0] = buffer[56];	// 45
     val = _convertBytesToUInt(subBuffer, 1);
     pSensorData->isLeftLightBumper = ((val & 0x1) != 0);
-    pSensorData->isFrontLeftLightBumper = ((val & 0x2)!= 0);
+    pSensorData->isFrontLeftLightBumper = ((val & 0x2) != 0);
     pSensorData->isCenterLeftLightBumper = ((val & 0x4) != 0);
     pSensorData->isCenterRightLightBumper = (val & 0x8 != 0);
     pSensorData->isFrontRightLightBumper = ((val & 0x10) != 0);
@@ -334,6 +381,68 @@ bool Roombie::readAllSensors(struct SensorData *pSensorData, uint8_t* buffer) {
 
     subBuffer[0] = buffer[79];	// 58
     pSensorData->stasis = _convertBytesToUInt(subBuffer, 1);
+
+    // pack data into json for transmission
+    outgoingDoc["isRightBump"] = pSensorData->isRightBump;        // 7
+    outgoingDoc["isLeftBump"] = pSensorData->isLeftBump;        // 7
+    outgoingDoc["isWheelRightDrop"] = pSensorData->isWheelRightDrop;      // 7
+    outgoingDoc["isWheelLeftDrop"] = pSensorData->isWheelLeftDrop;     // 7
+    outgoingDoc["isWall"] = pSensorData->isWall;          // 8
+    outgoingDoc["isCliffLeft"] = pSensorData->isCliffLeft;       // 9
+    outgoingDoc["isCliffFrontLeft"] = pSensorData->isCliffFrontLeft;      // 10
+    outgoingDoc["isCliffFrontRight"] = pSensorData->isCliffFrontRight;     // 11
+    outgoingDoc["isCliffRight"] = pSensorData->isCliffRight;        // 12
+    outgoingDoc["isVirtualWall"] = pSensorData->isVirtualWall;       // 13
+    outgoingDoc["isSideBrushOverCurrent"] = pSensorData->isSideBrushOverCurrent;  // 14
+    outgoingDoc["isMainBrushOverCurrent"] = pSensorData->isMainBrushOverCurrent;  // 14
+    outgoingDoc["isRightWheelOverCurrent"] = pSensorData->isRightWheelOverCurrent; // 14
+    outgoingDoc["isLeftWheelOverCurrent"] = pSensorData->isLeftWheelOverCurrent;  // 14
+    outgoingDoc["isDirtDetect"] = pSensorData->isDirtDetect;        // 15
+    outgoingDoc["irCharacterOmni"] = pSensorData->irCharacterOmni;     // 17
+    outgoingDoc["buttons"] = pSensorData->buttons;         // 18 // needs work
+    outgoingDoc["distance"] = pSensorData->distance;          // 19 // don't use
+    outgoingDoc["angle"] = pSensorData->angle;         // 20 // don' use
+    outgoingDoc["chargingState"] = pSensorData->chargingState; // 21
+    outgoingDoc["voltage"] = pSensorData->voltage;     // 22
+    outgoingDoc["current"] = pSensorData->current;         // 23
+    outgoingDoc["temperature"] = pSensorData->temperature;       // 24
+    outgoingDoc["batteryCharge"] = pSensorData->batteryCharge; // 25
+    outgoingDoc["batteryCapacity"] = pSensorData->batteryCapacity; // 26
+    outgoingDoc["wallSignal"] = pSensorData->wallSignal;    // 27
+    outgoingDoc["cliffLeftSignal"] = pSensorData->cliffLeftSignal; // 28
+    outgoingDoc["cliffFrontLeftSignal"] = pSensorData->cliffFrontLeftSignal;  // 29
+    outgoingDoc["cliffFrontRightSignal"] = pSensorData->cliffFrontRightSignal; // 30
+    outgoingDoc["cliffRightSignal"] = pSensorData->cliffRightSignal;  // 31
+    outgoingDoc["chargingSource"] = pSensorData->chargingSource;       // 34
+    outgoingDoc["oiMode"] = pSensorData->oiMode;      // 35
+    outgoingDoc["songNumber"] = pSensorData->songNumber;    // 36
+    outgoingDoc["songPlaying"] = pSensorData->songPlaying;   // 37
+    outgoingDoc["numOfStreamPkts"] = pSensorData->numOfStreamPkts; // 38
+    outgoingDoc["requestedVelocity"] = pSensorData->requestedVelocity;   // 39
+    outgoingDoc["requestedRadius"] = pSensorData->requestedRadius;     // 40
+    outgoingDoc["requestedRightVelocity"] = pSensorData->requestedRightVelocity;  // 41
+    outgoingDoc["requestedLeftVelocity"] = pSensorData->requestedLeftVelocity; // 42
+    outgoingDoc["leftEncoderCounts"] = pSensorData->leftEncoderCounts;   // 43
+    outgoingDoc["rightEncoderCounts"] = pSensorData->rightEncoderCounts;    // 44
+    outgoingDoc["isLeftLightBumper"] = pSensorData->isLeftLightBumper;     // 45
+    outgoingDoc["isFrontLeftLightBumper"] = pSensorData->isFrontLeftLightBumper;  // 45
+    outgoingDoc["isCenterLeftLightBumper"] = pSensorData->isCenterLeftLightBumper; // 45
+    outgoingDoc["isCenterRightLightBumper"] = pSensorData->isCenterRightLightBumper;  // 45
+    outgoingDoc["isFrontRightLightBumper"] = pSensorData->isFrontRightLightBumper; // 45
+    outgoingDoc["isRightLightBumper"] = pSensorData->isRightLightBumper;    // 45
+    outgoingDoc["leftLightBumper"] = pSensorData->leftLightBumper;     // 46
+    outgoingDoc["frontLeftLightBumper"] = pSensorData->frontLeftLightBumper;    // 47
+    outgoingDoc["centerLeftLightBumper"] = pSensorData->centerLeftLightBumper; // 48
+    outgoingDoc["centerRightLightBumper"] = pSensorData->centerRightLightBumper;  // 49
+    outgoingDoc["frontRightLightBumper"] = pSensorData->frontRightLightBumper; // 50
+    outgoingDoc["rightLightBumper"] = pSensorData->rightLightBumper;      // 51
+    outgoingDoc["irCharacterLeft"] = pSensorData->irCharacterLeft;   // 52
+    outgoingDoc["irCharacterRight"] = pSensorData->irCharacterRight; // 53
+    outgoingDoc["leftMotorCurrent"] = pSensorData->leftMotorCurrent;  // 54
+    outgoingDoc["rightMotorCurrent"] = pSensorData->rightMotorCurrent; // 55
+    outgoingDoc["mainBrushCurrent"] = pSensorData->mainBrushCurrent;  // 56
+    outgoingDoc["sideBrushCurrent"] = pSensorData->sideBrushCurrent;  // 57
+    outgoingDoc["stasis"] = pSensorData->stasis;  // 58 0-3
 
     isSuccess = true;
   } else {

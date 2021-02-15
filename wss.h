@@ -1,13 +1,10 @@
-#ifndef wss_h
-#define wss_h
+#ifndef wsseb5736d7-8f28-46d7-9e72-fa178b3641f8_h
+#define wsseb5736d7-8f28-46d7-9e72-fa178b3641f8_h
 
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <WebSocketsClient.h> // https://github.com/Links2004/arduinoWebSockets/tree/master/examples/esp8266 => this implements Ping/Pong
 #include <ArduinoJson.h>
-
-#define SSID "WARCHALKED"
-#define PASSWORD "0D8478C1E7"
 
 class WSS
 {	
