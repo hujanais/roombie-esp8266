@@ -70,38 +70,38 @@ void Roombie::wakeup() {
   delay(2000);
 }
 
-void Roombie::startOI128()
+void Roombie::startOI()
 {
   pSerial->write(128);
 }
 
-void Roombie::stopOI173()
+void Roombie::stopOI()
 {
   pSerial->write(173);
 }
 
 // powers down and set roomba to passive mode so charging can work.
-void Roombie::powerDown133()
+void Roombie::powerDown()
 {
   pSerial->write(133);
 }
 
-void Roombie::factoryReset7()
+void Roombie::factoryReset()
 {
   pSerial->write(7);
 }
 
-void Roombie::goSafeMode131()
+void Roombie::goSafeMode()
 {
   pSerial->write(131);
 }
 
-void Roombie::goFullMode132()
+void Roombie::goFullMode()
 {
   pSerial->write(132);
 }
 
-void Roombie::goPassiveMode128()
+void Roombie::goPassiveMode()
 {
   pSerial->write(128);
 }
@@ -163,6 +163,33 @@ void Roombie::drive(short velocity, short radius) {
   pSerial->write(radius);         // LSB
 }
 
+/**
+ * Sets the PWM controls for the mainbrush, sidebrush and vacuum.
+ * mainbrush and sidebrush can be -100% - 100% because they are bi-directional. Main Brush and Side Brush duty cycle(-127 –127)
+ * vacuum is 0-100%. Vacuum duty cycle(0 –127)
+ */
+void Roombie::pwmMotors(short mainBrushPercentage, short sideBrushPercentage, unsigned short vacuumPercentage) {
+  // clamp the values. 
+  if (mainBrushPercentage < -100) mainBrushPercentage = -100;
+  if (mainBrushPercentage > 100) mainBrushPercentage = 100;
+  if (sideBrushPercentage < -100) sideBrushPercentage = -100;
+  if (sideBrushPercentage > 100) sideBrushPercentage = 100;
+  if (vacuumPercentage < 0) vacuumPercentage = 0;
+  if (vacuumPercentage > 100) vacuumPercentage = 100;
+   
+  short mainBrushPWM = (double)mainBrushPercentage / 100.0 * 127;
+  short sideBrushPWM = (double)sideBrushPercentage / 100.0 * 127;
+  short vacuumPWM = (double)vacuumPercentage / 100.0 * 127;
+
+  Serial.println(mainBrushPWM);
+  Serial.println(sideBrushPWM);
+  Serial.println(vacuumPWM);
+
+  pSerial->write(144);
+  pSerial->write(mainBrushPWM);
+  pSerial->write(sideBrushPWM);
+  pSerial->write(vacuumPWM);
+}
 
 /*
  	Read all roomba sensor data.  Becareful that this is a slow process

@@ -7,7 +7,7 @@
 
 /// Read timeout in milliseconds.
 /// If we have to wait more than this to read a char when we are expecting one, then something is wrong.
-#define ROOMBA_READ_TIMEOUT 5000
+#define ROOMBA_READ_TIMEOUT 2000
 
 #define INVALIDRESULT -9999
 
@@ -80,18 +80,20 @@ class Roombie
 		Roombie(int rxPin, int txPin, int baudPin);
 		void init();
 		void wakeup();
-		void startOI128();
-		void stopOI173();
-		void powerDown133();
-		void factoryReset7();
-		void goSafeMode131();
-		void goFullMode132();
-		void goPassiveMode128();
+		void startOI();
+		void stopOI();
+		void powerDown();
+		void factoryReset();
+		void goSafeMode();
+		void goFullMode();
+		void goPassiveMode();
 		void doClean();
 		void doMaxClean();
 		void doSpotClean();
 		void doDock();
 		void doCommand(char* cmd);
+
+    void pwmMotors(short mainBrushPercentage, short sideBrushPercentage, unsigned short vacuumPercentage);
     void drive(short velocity, short radius);
     void turnCW(short velocity);
     void turnCCW(short velocity);

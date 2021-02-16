@@ -14,10 +14,8 @@ String space = " ";
 
 // Websocket related variables
 WSS wss;
-DynamicJsonDocument outgoingDoc(1024);
+DynamicJsonDocument sensorDataDoc(1024);
 DynamicJsonDocument json(1024);
-DynamicJsonDocument innerjson(1024);
-
 
 unsigned long startTime = 0;
 unsigned long responseTime = 0;
@@ -42,7 +40,8 @@ void setup() {
   // initialize the roomba.
   roombie->init();
 
-  roombie->startOI128();
+  // Start the OI mode.
+  roombie->startOI();
 }
 
 /**
@@ -58,25 +57,16 @@ void loop() {
   // run this operation once every XX seconds
   if (millis() - startTime >= refreshRate) {
     responseTime = millis();
-    isAlive = roombie->readAllSensors(&pSensorData, outgoingDoc, rawBytes);
-/*    Serial.println(millis() - responseTime);
-    for (int i = 0; i < 80; i++) {
-      Serial.print(rawBytes[i], HEX);
-      Serial.print(space);
-    } */
+    startTime = millis();
 
-     startTime = millis();
+    isAlive = roombie->readAllSensors(&pSensorData, sensorDataDoc, rawBytes);
 
     // add additional json data here.
-    outgoingDoc["isAlive"] = isAlive;
+    sensorDataDoc["isAlive"] = isAlive;
 
     // send the data to the internet
-    wss.sendMessage(outgoingDoc);
-
-    /*    innerjson["level2"] = "hello";
-        json["level1"] = innerjson;
-        wss.sendMessage(json);
-    */
+    json["data"] = sensorDataDoc;
+    wss.sendMessage(sensorDataDoc);
   }
 }
 
@@ -85,28 +75,38 @@ void loop() {
    expected payload: {command: 'do-something'}
 */
 void onMessage(DynamicJsonDocument jsonDoc) {
-  DynamicJsonDocument outgoingDoc(512);
-  if (jsonDoc["command"] == "WAKEUP") {
+  String cmd = jsonDoc["command"].as<String>();
+
+  if (cmd == "WAKEUP") {
     roombie->wakeup();
-  } else if (jsonDoc["command"] == "RESET") {
-    roombie->factoryReset7();
-  } else if (jsonDoc["command"] == "DOCK") {
+  } else if (cmd == "RESET") {
+    roombie->factoryReset();
+  } else if (cmd == "DOCK") {
     roombie->doDock();
-  } else if (jsonDoc["command"] == "CLEAN") {
+  } else if (cmd == "CLEAN") {
     roombie->doClean();
-  } else if (jsonDoc["command"] == "FULL") {
-    roombie->goFullMode132();
-  } else if (jsonDoc["command"] == "PASSIVE") {
-    roombie->goPassiveMode128();
-  } else if (jsonDoc["command"] == "SAFE") {
-    roombie->goSafeMode131();
-  } else if (jsonDoc["command"] == "OFF") {
-    roombie->powerDown133();
-  } else {
+  } else if (cmd == "FULL") {
+    roombie->goFullMode();
+  } else if (cmd == "PASSIVE") {
+    roombie->goPassiveMode();
+  } else if (cmd == "SAFE") {
+    roombie->goSafeMode();
+  } else if (cmd == "OFF") {
+    roombie->powerDown();
+  } else if (cmd.indexOf("DRIVE") != -1) {
+    short velocity, radius;
+    sscanf(cmd.c_str(), "DRIVE %d", &velocity, &radius);
+    roombie->drive(velocity, 0);
+  } else if (cmd.indexOf("PWM") != -1) {
+    short mainBrush, sideBrush, vacuum;
+    sscanf(cmd.c_str(), "PWM %d %d %d", &mainBrush, &sideBrush, &vacuum);
+    roombie->pwmMotors(mainBrush, sideBrush, vacuum);
+  } else if (cmd.indexOf("CMD") != -1) {
     char cmdBuffer[256];
-    jsonDoc["command"].as<String>().toCharArray(cmdBuffer, 256);
-    Serial.println(cmdBuffer);
+    cmd.toCharArray(cmdBuffer, 256);
     roombie->doCommand(cmdBuffer);
+  } else {
+    Serial.println(cmd + " does not exist.");
   }
 }
 
