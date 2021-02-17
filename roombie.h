@@ -94,7 +94,7 @@ class Roombie
 		void doCommand(char* cmd);
 
     void pwmMotors(short mainBrushPercentage, short sideBrushPercentage, unsigned short vacuumPercentage);
-    void drive(short velocity, short radius);
+    void drive(short velocityPercent, short radius);
     void turnCW(short velocity);
     void turnCCW(short velocity);
     

@@ -95,8 +95,8 @@ void onMessage(DynamicJsonDocument jsonDoc) {
     roombie->powerDown();
   } else if (cmd.indexOf("DRIVE") != -1) {
     short velocity, radius;
-    sscanf(cmd.c_str(), "DRIVE %d", &velocity, &radius);
-    roombie->drive(velocity, 0);
+    sscanf(cmd.c_str(), "DRIVE %d %d", &velocity, &radius);
+    roombie->drive(velocity, radius);
   } else if (cmd.indexOf("PWM") != -1) {
     short mainBrush, sideBrush, vacuum;
     sscanf(cmd.c_str(), "PWM %d %d %d", &mainBrush, &sideBrush, &vacuum);

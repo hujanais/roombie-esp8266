@@ -5,6 +5,9 @@
 #define SSID "WARCHALKED"
 #define PASSWORD "0D8478C1E7"
 
+#define NODESERVER "192.168.1.106"
+#define NODESERVER_WEBSOCKETPORT 8888
+
 //char* host = "192.168.1.106";  //replace this ip address with the ip address of your Node.Js server
 //const int wsport = 8888;
 
@@ -32,7 +35,7 @@ void WSS::init(WebSocketClientEvent handler, OnMessage cb) {
   Serial.println(WiFi.localIP());
   delay(1000);
 
-  initWebSocket("192.168.1.106", 8888, "/esp", handler);
+  initWebSocket(NODESERVER, NODESERVER_WEBSOCKETPORT, "/esp", handler);
 }
 
 /**

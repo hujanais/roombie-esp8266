@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 #include <ESP8266WiFi.h>
-#include <WebSocketsClient.h> // https://github.com/Links2004/arduinoWebSockets/tree/master/examples/esp8266 => this implements Ping/Pong
+#include <WebSocketsClient.h> // https://github.com/Links2004/arduinoWebSockets => this implements Ping/Pong
 #include <ArduinoJson.h>
 
 class WSS

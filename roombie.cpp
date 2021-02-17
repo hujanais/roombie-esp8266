@@ -149,13 +149,28 @@ void Roombie::turnCCW(short velocity) {
  * Radius (-2000 to 2000 mm)
  * Available in modes: Safe or Full
  */
-void Roombie::drive(short velocity, short radius) {
-  // clamp the velocity and radius
-  if (velocity < -500) velocity = -500;
-  if (velocity > 500) velocity = 500; 
+void Roombie::drive(short velocityPercent, short radius) {
+  // clamp the velocityPercent and radius
+  if (velocityPercent < -100) velocityPercent = -100;
+  if (velocityPercent > 100) velocityPercent = 100;
   if (radius < -2000) radius = -2000;
   if (radius > 2000) radius = 2000; 
-  
+
+  // Velocity (-500 to 500 mm/s).  speed can only be in steps of 28.5 mm/s.
+  double dVelocity = (double)velocityPercent / 100.0 * 500;
+  dVelocity = floor(dVelocity / 28.5) * 28.5;
+  short velocity = dVelocity;
+
+  uint8_t velocityMSB = velocity >> 8;
+  uint8_t velocityLSB = velocity;
+  uint8_t radiusMSB = radius >> 8;
+  uint8_t radiusLSB = radius;
+
+  Serial.println(velocityMSB, HEX);
+  Serial.println(velocityLSB, HEX);
+  Serial.println(radiusMSB, HEX);
+  Serial.println(radiusLSB, HEX);
+      
   pSerial->write(137);
   pSerial->write(velocity >> 8);  // MSB
   pSerial->write(velocity);       // LSB
