@@ -6,7 +6,9 @@
 #define PASSWORD "0D8478C1E7"
 
 #define NODESERVER "192.168.1.106"
-#define NODESERVER_WEBSOCKETPORT 8888
+#define NODESERVER_WEBSOCKETPORT 3000
+// #define NODESERVER "roombie.herokuapp.com"
+// #define NODESERVER_WEBSOCKETPORT 80
 
 //char* host = "192.168.1.106";  //replace this ip address with the ip address of your Node.Js server
 //const int wsport = 8888;

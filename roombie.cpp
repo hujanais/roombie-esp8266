@@ -126,6 +126,11 @@ void Roombie::doDock()
   pSerial->write(143);
 }
 
+void Roombie::doEMO() {
+  drive(0,0);
+  pwmMotors(0,0,0);
+}
+
 /**
  * Special case to turn clock-wise on the spot.
  */

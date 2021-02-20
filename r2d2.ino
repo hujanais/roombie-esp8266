@@ -76,6 +76,7 @@ void loop() {
 */
 void onMessage(DynamicJsonDocument jsonDoc) {
   String cmd = jsonDoc["command"].as<String>();
+  Serial.println(cmd);
 
   if (cmd == "WAKEUP") {
     roombie->wakeup();
@@ -93,6 +94,8 @@ void onMessage(DynamicJsonDocument jsonDoc) {
     roombie->goSafeMode();
   } else if (cmd == "OFF") {
     roombie->powerDown();
+  } else if (cmd == "EMO") {
+    roombie->doEMO();
   } else if (cmd.indexOf("DRIVE") != -1) {
     short velocity, radius;
     sscanf(cmd.c_str(), "DRIVE %d %d", &velocity, &radius);
