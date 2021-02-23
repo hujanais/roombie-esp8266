@@ -17,9 +17,15 @@ WSS wss;
 DynamicJsonDocument sensorDataDoc(1024);
 DynamicJsonDocument json(1024);
 
-unsigned long startTime = 0;
+// This is the time data is read from the Roomba
+unsigned long refreshStartTime = 0;
+unsigned int refreshRate = 250;
+
+// This is the down-sampled rate for websocket transmission
+unsigned long transmitStartTime = 0;
+unsigned int transmitRate = 1000;
+
 unsigned long responseTime = 0;
-unsigned int refreshRate = 1000;
 bool isAlive = false;
 
 void setup() {
@@ -54,10 +60,10 @@ void loop() {
   // do some cleanup.
   memset(rawBytes, 0, sizeof(rawBytes));
 
-  // run this operation once every XX seconds
-  if (millis() - startTime >= refreshRate) {
+  // read the roomba sensors every xx seconds
+  if (millis() - refreshStartTime >= refreshRate) {
     responseTime = millis();
-    startTime = millis();
+    refreshStartTime = millis();
 
     isAlive = roombie->readAllSensors(&pSensorData, sensorDataDoc, rawBytes);
 
@@ -66,8 +72,16 @@ void loop() {
 
     // send the data to the internet
     json["data"] = sensorDataDoc;
+  }
+
+  // transmit websocket data every yy seconds
+  if (millis() - transmitStartTime >= transmitRate) {
+    transmitStartTime = millis();
+
+    // send the data to the internet
     wss.sendMessage(sensorDataDoc);
   }
+
 }
 
 /*

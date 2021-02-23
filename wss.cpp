@@ -57,8 +57,8 @@ void WSS::initWebSocket(char* host, int wsPort, char wsPath[], WebSocketClientEv
   // use HTTP Basic Authorization this is optional remove if not needed
   // webSocket.setAuthorization("user", "Password");
 
-  // try ever 5000 again if connection has failed
-  webSocket->setReconnectInterval(5000);
+  // try every 10000 again if connection has failed
+  webSocket->setReconnectInterval(10000);
 
   // start heartbeat (optional)
   // ping server every 15000 ms
